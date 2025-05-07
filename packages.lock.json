@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net9.0-windows7.0": {
+      "DalamudPackager": {
+        "type": "Direct",
+        "requested": "[12.0.0, )",
+        "resolved": "12.0.0",
+        "contentHash": "J5TJLV3f16T/E2H2P17ClWjtfEBPpq3yxvqW46eN36JCm6wR+EaoaYkqG9Rm5sHqs3/nK/vKjWWyvEs/jhKoXw=="
+      },
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.25, )",
+        "resolved": "1.2.25",
+        "contentHash": "xCXiw7BCxHJ8pF6wPepRUddlh2dlQlbr81gXA72hdk4FLHkKXas7EH/n+fk5UCA/YfMqG1Z6XaPiUjDbUNBUzg=="
+      },
+      "Magick.NET-Q8-AnyCPU": {
+        "type": "Direct",
+        "requested": "[14.6.0, )",
+        "resolved": "14.6.0",
+        "contentHash": "B0/qIiJ3Y+saxSLVOcPCBQe/5UZYU0FedxXu+ZvSL7DXOhEzbcOgnaTtUhpUZhMWSOB/zrkduKFHnCj+7W0GOg==",
+        "dependencies": {
+          "Magick.NET.Core": "14.6.0"
+        }
+      },
+      "Magick.NET.Core": {
+        "type": "Transitive",
+        "resolved": "14.6.0",
+        "contentHash": "hyXMoLiq6iHooL54iTYzKtiWOAQOiwrwVMeoglGifwYAduAzVfeG+/BxgIz1SaxfczBfQFlcWKTrRU0RNBucUw=="
+      }
+    }
+  }
+}
