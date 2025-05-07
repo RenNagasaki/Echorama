@@ -232,7 +232,7 @@ public unsafe class PanoramaHelper: IDisposable
                 {
                     if (lines[i].StartsWith("p "))
                     {
-                        lines[i] = ReplaceDimensionsInPLine(lines[i], 16380, 8190);
+                        lines[i] = ReplaceDimensionsInPLine(lines[i], configuration.PanoramaWidth, configuration.PanoramaHeight);
                         break;
                     }
                 }
