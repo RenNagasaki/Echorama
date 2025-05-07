@@ -95,6 +95,35 @@ public class MainWindow : Window, IDisposable
                     configuration.ColumnAmount = columnAmount;
                     configuration.Save();
                 }
+                var panoramaWidth = configuration.PanoramaWidth;
+                if (ImGui.InputInt("Panorama Width (7000-16380)##ERPanoramaWidth", ref panoramaWidth, 2))
+                {
+                    if (panoramaWidth % 2 != 0)
+                        panoramaWidth--;
+
+                    if (panoramaWidth > 16380)
+                        panoramaWidth = 16380;
+
+                    if (panoramaWidth < 7000)
+                        panoramaWidth = 7000;
+
+                    configuration.PanoramaWidth = panoramaWidth;
+                    configuration.PanoramaHeight = panoramaWidth / 2;
+                    configuration.Save();
+                }
+                var panoramaHeight = configuration.PanoramaHeight;
+                if (ImGui.InputInt("Panorama Height (3500-8190)##ERPanoramaHeight", ref panoramaHeight, 1))
+                {
+                    if (panoramaHeight > 8190)
+                        panoramaHeight = 8190;
+
+                    if (panoramaHeight < 3500)
+                        panoramaHeight = 3500;
+
+                    configuration.PanoramaHeight = panoramaHeight;
+                    configuration.PanoramaWidth = panoramaWidth * 2;
+                    configuration.Save();
+                }
 
                 var experimentalCpDetection = configuration.ExperimentalCPDetection;
                 if (ImGui.Checkbox("Use Control Point detection (Experimental)##ERExperimentalCPDetection",

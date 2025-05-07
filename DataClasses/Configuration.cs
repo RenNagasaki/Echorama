@@ -14,6 +14,8 @@ public class Configuration : IPluginConfiguration
     public float ScreenshotScale { get; set; } = 1;
     public int ColumnAmount { get; set; } = 8;
     public int RowAmount { get; set; } = 7;
+    public int PanoramaWidth { get; set; } = 16380;
+    public int PanoramaHeight { get; set; } = 8190;
     public bool ShowGeneralDebugLog { get; set; } = true;
     public bool ShowGeneralErrorLog { get; set; } = true;
     public bool GeneralJumpToBottom { get; set; } = true;
