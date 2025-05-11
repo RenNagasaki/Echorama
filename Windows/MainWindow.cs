@@ -121,9 +121,16 @@ public class MainWindow : Window, IDisposable
                         panoramaHeight = 3500;
 
                     configuration.PanoramaHeight = panoramaHeight;
-                    configuration.PanoramaWidth = panoramaWidth * 2;
+                    configuration.PanoramaWidth = panoramaHeight * 2;
                     configuration.Save();
                 }
+                /*var showCharacter = configuration.ShowCharacter;
+                if (ImGui.Checkbox("Show character in panorama (moves camera infront of player)##ERShowCharacter",
+                                   ref showCharacter))
+                {
+                    configuration.ShowCharacter = showCharacter;
+                    configuration.Save();
+                }*/
 
                 var experimentalCpDetection = configuration.ExperimentalCPDetection;
                 if (ImGui.Checkbox("Use Control Point detection (Experimental)##ERExperimentalCPDetection",
