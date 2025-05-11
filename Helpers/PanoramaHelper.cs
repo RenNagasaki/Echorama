@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Dalamud.Game;
 using Dalamud.Hooking;
@@ -38,52 +39,78 @@ public unsafe class PanoramaHelper: IDisposable
     private readonly Hook<ScreenShotCallbackDelegate>? ScreenShotCallbackHook = null;
 
     private Configuration configuration;
-    private string ptoGenPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\pto_gen.exe";
-    private string ptoVarPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\pto_var.exe";
-    private string cpFindPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\cpfind.exe";
-    private string cpCleanPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\cpclean.exe";
-    private string panoModifyPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\pano_modify.exe";
-    private string autoOptimiserPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\autooptimiser.exe";
-    private string nonaPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\nona.exe";
-    private string enblendPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\enblend.exe";
-    private string verdandiPath = $@"{Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName)}\bin\verdandi.exe";
+    private string ptoGenPath;
+    private string ptoVarPath;
+    private string cpFindPath;
+    private string cpCleanPath;
+    private string panoModifyPath;
+    private string autoOptimiserPath;
+    private string nonaPath;
+    private string enblendPath;
+    private string verdandiPath;
 
-    private bool takeScreenshotPressed = false;
-    private int imageCountH = 0;
-    private int imageCountV = 0;
-    private double fov = 0;
-    private string weatherName = "";
-    private string eorzeaTime = "";
-    private EREventId currentEventId = null;
+    private bool takeScreenshotPressed;
+    private int imageCountH;
+    private int imageCountV;
+    private double fov;
+    private EREventId currentEventId;
     private Vector3 panoramaLocation = Vector3.Zero;
-    private uint oldWidth = 0;
-    private uint oldHeight = 0;
+    private uint oldWidth;
+    private uint oldHeight;
     private float verticalAngle = 30f;
     private float horizontalAngle = 45f;
     private int anchor = 24;
-    private float origMaxVRota = 0f;
-    private float origMinVRota = 0f;
-    private float origCamX = 0f;
+    private readonly float origMaxVRota;
+    private readonly float origMinVRota;
+    private float origCamX;
 
     public PanoramaHelper(Configuration configuration)
     {
         Plugin.GameInteropProvider.InitializeFromAttributes(this);
         this.configuration = configuration;
-        var device = Device.Instance();
-        oldWidth = device->Width;
-        oldHeight = device->Height;
+
         var camera = Common.CameraManager->worldCamera;
         this.origMaxVRota = camera->maxVRotation;
         this.origMinVRota = camera->minVRotation;
         this.configuration.MaxVRota = this.origMaxVRota;
         this.configuration.MinVRota = this.origMinVRota;
+
+        SetupHuginPaths();
     }
 
-    internal void MoveCameraInFrontOfPlayer()
+    private void SetupHuginPaths()
+    {
+        if (Dalamud.Utility.Util.GetHostPlatform() == OSPlatform.Windows)
+        {
+            ptoGenPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "pto_gen.exe");
+            ptoVarPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "pto_var.exe");
+            cpFindPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "cpfind.exe");
+            cpCleanPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "cpclean.exe");
+            panoModifyPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "pano_modify.exe");
+            autoOptimiserPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "autooptimiser.exe");
+            nonaPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "nona.exe");
+            enblendPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "enblend.exe");
+            verdandiPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "verdandi.exe");
+        }
+        else
+        {
+            ptoGenPath = "pto_gen";
+            ptoVarPath = "pto_var";
+            cpFindPath = "cpfind";
+            cpCleanPath = "cpclean";
+            panoModifyPath = "pano_modify";
+            autoOptimiserPath = "autooptimiser";
+            nonaPath = "nona";
+            enblendPath = "enblend";
+            verdandiPath = "verdandi";
+        }
+    }
+
+    private void MoveCameraInFrontOfPlayer()
     {
         try
         {
-            var cameraManager = CameraManager.Instance();
+            /*var cameraManager = CameraManager.Instance();
             var sceneCamera = cameraManager->GetActiveCamera()->SceneCamera;
             LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name,
                             $"OldPos -> {sceneCamera.Position.X}:{sceneCamera.Position.Y}:{sceneCamera.Position.Z}",
@@ -102,7 +129,7 @@ public unsafe class PanoramaHelper: IDisposable
             camera->lockPosition = 0;
             //camera->mode = 1;
             camera->viewX += 100f;
-            camera->x += 100f;
+            camera->x += 100f;*/
         }
         catch (Exception e)
         {
@@ -120,27 +147,37 @@ public unsafe class PanoramaHelper: IDisposable
                 currentEventId = new EREventId();
                 LogHelper.Start(MethodBase.GetCurrentMethod()!.Name, currentEventId);
                 LogHelper.Info(MethodBase.GetCurrentMethod()!.Name, "Creating panorama", currentEventId);
-                var camera = Common.CameraManager->worldCamera;
+                var logMsg = $"VAngle: {verticalAngle}, HAngle: {horizontalAngle}, Anchor: {anchor}";
+                MainWindow.ActiveTask(
+                    MethodBase.GetCurrentMethod().Name,
+                    $"Creating panorama screenshots, hands of mouse and keyboard(or controller)!!!\r\n{logMsg}",
+                    currentEventId
+                );
+
                 var localPlayer = Plugin.ClientState.LocalPlayer;
                 panoramaLocation = localPlayer.Position;
-                camera->mode = 0;
+
+                var weatherId = WeatherManager.Instance()->GetCurrentWeather();
+                var weatherSheet = Plugin.DataManager.GetExcelSheet<Weather>(ClientLanguage.English);
+                var weatherName = weatherSheet.GetRow(weatherId).Name.ExtractText();
+                var eorzeaTime = EorzeanDateTime(Framework.Instance()->ClientTime.EorzeaTime);
+                var locationString =
+                    $"{panoramaLocation.X.ToString("F0", CultureInfo.InvariantCulture)}_" +
+                    $"{panoramaLocation.Y.ToString("F0", CultureInfo.InvariantCulture)}_" +
+                    $"{panoramaLocation.Z.ToString("F0", CultureInfo.InvariantCulture)}";
+                currentEventId.PanoramaPath =
+                    Path.Join(configuration.PanoramaFolder, $"{GetTerritoryName()}_{weatherName}_{locationString}_{eorzeaTime}");
+                locationString =
+                    $"{panoramaLocation.X.ToString("F2", CultureInfo.InvariantCulture)}_" +
+                    $"{panoramaLocation.Y.ToString("F2", CultureInfo.InvariantCulture)}_" +
+                    $"{panoramaLocation.Z.ToString("F2", CultureInfo.InvariantCulture)}";
+                currentEventId.PanoramaName =
+                    $"{GetTerritoryName()}_{weatherName}_{locationString}_{eorzeaTime}"
+                ;
 
                 if (configuration.ShowCharacter)
                 {
                     MoveCameraInFrontOfPlayer();
-                }
-
-                float curWidth = oldWidth;
-                float curHeight = oldHeight;
-                if (configuration.ScreenshotScale > 1)
-                {
-                    var device = Device.Instance();
-                    device->NewWidth = oldWidth * (uint)configuration.ScreenshotScale;
-                    device->NewHeight = oldHeight * (uint)configuration.ScreenshotScale;
-
-                    curWidth = device->NewWidth;
-                    curHeight = device->NewHeight;
-                    device->RequestResolutionChange = 1;
                 }
 
                 verticalAngle =
@@ -150,29 +187,26 @@ public unsafe class PanoramaHelper: IDisposable
                              ? (configuration.RowAmount - 1) / 2 * configuration.ColumnAmount
                              : 0;
 
-                var weatherId = WeatherManager.Instance()->GetCurrentWeather();
-                var weatherSheet = Plugin.DataManager.GetExcelSheet<Weather>(ClientLanguage.English);
-                weatherName = weatherSheet.GetRow(weatherId).Name.ExtractText();
-                eorzeaTime = EorzeanDateTime(Framework.Instance()->ClientTime.EorzeaTime);
-                var locationString =
-                    $"{panoramaLocation.X.ToString("F0", CultureInfo.InvariantCulture)}_" +
-                    $"{panoramaLocation.Y.ToString("F0", CultureInfo.InvariantCulture)}_" +
-                    $"{panoramaLocation.Z.ToString("F0", CultureInfo.InvariantCulture)}";
-                currentEventId.PanoramaPath =
-                    $@"{configuration.PanoramaFolder}\{GetTerritoryName()}_{weatherName}_{locationString}_{eorzeaTime}";
-                locationString =
-                    $"{panoramaLocation.X.ToString("F2", CultureInfo.InvariantCulture)}_" +
-                    $"{panoramaLocation.Y.ToString("F2", CultureInfo.InvariantCulture)}_" +
-                    $"{panoramaLocation.Z.ToString("F2", CultureInfo.InvariantCulture)}";
-                currentEventId.PanoramaName =
-                    $"{GetTerritoryName()}_{weatherName}_{locationString}_{eorzeaTime}"
-                ;
-                var logMsg = $"VAngle: {verticalAngle}, HAngle: {horizontalAngle}, Anchor: {anchor}";
-                LogHelper.Debug(MethodBase.GetCurrentMethod().Name, logMsg, currentEventId);
-                MainWindow.activeTask =
-                    $"Creating panorama screenshots, hands of mouse and keyboard(or controller)!!!\r\n{logMsg}";
                 imageCountH = 0;
                 imageCountV = 1;
+
+                var camera = Common.CameraManager->worldCamera;
+                camera->mode = 0;
+
+                var device = Device.Instance();
+                oldWidth = device->Width;
+                oldHeight = device->Height;
+                float curWidth = oldWidth;
+                float curHeight = oldHeight;
+                if (configuration.ScreenshotScale > 1)
+                {
+                    device->NewWidth = oldWidth * (uint)configuration.ScreenshotScale;
+                    device->NewHeight = oldHeight * (uint)configuration.ScreenshotScale;
+
+                    curWidth = device->NewWidth;
+                    curHeight = device->NewHeight;
+                    device->RequestResolutionChange = 1;
+                }
                 Timer timer = new Timer(5000);
                 timer.Elapsed += (_, __) =>
                 {
@@ -291,23 +325,27 @@ public unsafe class PanoramaHelper: IDisposable
                     var threadEventId = currentEventId;
                     var newPanoramaFolder = threadEventId.PanoramaPath;
                     var newPanoramaName = threadEventId.PanoramaName;
-                    LogHelper.Debug("StartPanoramaProcess", "Cleaning up temp directory", threadEventId);
+                    var tempPanoramaFolder = Path.Join(newPanoramaFolder, "temp");
+                    var stitchesPanoramaFolder = Path.Join(newPanoramaFolder, "stitches");
+                    var finishedPanoramaFolder = Path.Join(configuration.PanoramaFolder, "finished_panorama");
+                    var finishedPanoramaWebpFolder = Path.Join(configuration.PanoramaFolder, "finished_panorama_webp");
+                    LogHelper.Debug("StartPanoramaProcess", "Creating necessary folder structure", threadEventId);
                     if (!Directory.Exists($@"{newPanoramaFolder}"))
                         Directory.CreateDirectory($@"{newPanoramaFolder}");
-                    if (!Directory.Exists($@"{newPanoramaFolder}\temp"))
-                        Directory.CreateDirectory($@"{newPanoramaFolder}\temp");
-                    if (!Directory.Exists($@"{newPanoramaFolder}\stitches"))
-                        Directory.CreateDirectory($@"{newPanoramaFolder}\stitches");
-                    if (!Directory.Exists($@"{configuration.PanoramaFolder}\finished_panorama"))
-                        Directory.CreateDirectory($@"{configuration.PanoramaFolder}\finished_panorama");
-                    if (!Directory.Exists($@"{configuration.PanoramaFolder}\finished_panorama_webp"))
-                        Directory.CreateDirectory($@"{configuration.PanoramaFolder}\finished_panorama_webp");
+                    if (!Directory.Exists(tempPanoramaFolder))
+                        Directory.CreateDirectory(tempPanoramaFolder);
+                    if (!Directory.Exists(stitchesPanoramaFolder))
+                        Directory.CreateDirectory(stitchesPanoramaFolder);
+                    if (!Directory.Exists(finishedPanoramaFolder))
+                        Directory.CreateDirectory(finishedPanoramaFolder);
+                    if (!Directory.Exists(finishedPanoramaWebpFolder))
+                        Directory.CreateDirectory(finishedPanoramaWebpFolder);
 
                     MainWindow.ActiveTask("StartPanoramaProcess | pto_gen","Creating panorama of screenshots!\r\nCalling pto_gen", threadEventId);
                     CallCMD(
                         threadEventId,
                         ptoGenPath,
-                        $"-f {fov.ToString("F6", CultureInfo.InvariantCulture)} -o \"{newPanoramaFolder}\\temp\\panorama-1.pto\" \"{newPanoramaFolder}\\images\\row*.jpg\"",
+                        $"-f {fov.ToString("F6", CultureInfo.InvariantCulture)} -o \"{Path.Join(tempPanoramaFolder, $"panorama-1.pto")}\" \"{Path.Join(newPanoramaFolder, "images", "row*.jpg")}\"",
                         "pto_gen"
                     );
 
@@ -324,7 +362,7 @@ public unsafe class PanoramaHelper: IDisposable
                             CallCMD(
                                 threadEventId,
                                 ptoVarPath,
-                                $"--set=y{imageCount}={tempHAngle.ToString("F6", CultureInfo.InvariantCulture)},p{imageCount}={tempVAngle.ToString("F6", CultureInfo.InvariantCulture)},v{imageCount}={fov.ToString("F6", CultureInfo.InvariantCulture)} -o \"{newPanoramaFolder}\\temp\\panorama{imageCount}.pto\" \"{newPanoramaFolder}\\temp\\panorama{imageCount - 1}.pto\"",
+                                $"--set=y{imageCount}={tempHAngle.ToString("F6", CultureInfo.InvariantCulture)},p{imageCount}={tempVAngle.ToString("F6", CultureInfo.InvariantCulture)},v{imageCount}={fov.ToString("F6", CultureInfo.InvariantCulture)} -o \"{Path.Join(tempPanoramaFolder, $"panorama{imageCount}.pto")}\" \"{Path.Join(tempPanoramaFolder, $"panorama{imageCount - 1}.pto")}\"",
                                 "pto_var"
                             );
                             imageCount++;
@@ -334,7 +372,7 @@ public unsafe class PanoramaHelper: IDisposable
                     CallCMD(
                         threadEventId,
                         ptoVarPath,
-                        $"--modify-opt --opt=y,p,!v --anchor={anchor} --color-anchor={anchor} -o \"{newPanoramaFolder}\\temp\\anchored.pto\" \"{newPanoramaFolder}\\temp\\panorama{imageCount - 1}.pto\"",
+                        $"--modify-opt --opt=y,p,!v --anchor={anchor} --color-anchor={anchor} -o \"{Path.Join(tempPanoramaFolder, $"anchored.pto")}\" \"{Path.Join(tempPanoramaFolder, $"panorama{imageCount - 1}.pto")}\"",
                         "pto_var"
                     );
 
@@ -345,7 +383,7 @@ public unsafe class PanoramaHelper: IDisposable
                         CallCMD(
                             threadEventId,
                             cpFindPath,
-                            $"--prealigned -o \"{newPanoramaFolder}\\temp\\cpfind.pto\" \"{newPanoramaFolder}\\temp\\{nextPto}.pto\"",
+                            $"--prealigned -o \"{Path.Join(tempPanoramaFolder, $"cpfind.pto")}\" \"{Path.Join(tempPanoramaFolder, $"{nextPto}.pto")}\"",
                             "cpfind"
                         );
 
@@ -353,7 +391,7 @@ public unsafe class PanoramaHelper: IDisposable
                         CallCMD(
                             threadEventId,
                             cpCleanPath,
-                            $"-o \"{newPanoramaFolder}\\temp\\cpclean.pto\" \"{newPanoramaFolder}\\temp\\cpfind.pto\"",
+                            $"-o \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpfind.pto")}\"",
                             "cpclean"
                         );
 
@@ -361,13 +399,13 @@ public unsafe class PanoramaHelper: IDisposable
                         CallCMD(
                             threadEventId,
                             autoOptimiserPath,
-                            $"-a -l -s -v={fov.ToString("F6", CultureInfo.InvariantCulture)}  -o \"{newPanoramaFolder}\\temp\\optimised.pto\" \"{newPanoramaFolder}\\temp\\cpclean.pto\"",
+                            $"-a -l -s -v={fov.ToString("F6", CultureInfo.InvariantCulture)}  -o \"{Path.Join(tempPanoramaFolder, $"autooptimiser.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\"",
                             "autooptimiser"
                         );
-                        nextPto = "optimised";
+                        nextPto = "autooptimiser";
                     }
 
-                    var lines = File.ReadAllLines($"{newPanoramaFolder}\\temp\\{nextPto}.pto");
+                    var lines = File.ReadAllLines(Path.Join(tempPanoramaFolder, $"{nextPto}.pto"));
                     for (int i = 0; i < lines.Length; i++)
                     {
                         if (lines[i].StartsWith("p "))
@@ -376,13 +414,13 @@ public unsafe class PanoramaHelper: IDisposable
                             break;
                         }
                     }
-                    File.WriteAllLines($"{newPanoramaFolder}\\temp\\resized.pto", lines);
+                    File.WriteAllLines(Path.Join(tempPanoramaFolder, "resized.pto"), lines);
 
                     MainWindow.ActiveTask("StartPanoramaProcess | pano_modify","Creating panorama of screenshots!\r\nCalling pano_modify", threadEventId);
                     CallCMD(
                         threadEventId,
                         panoModifyPath,
-                        $"--crop=AUTO -o \"{newPanoramaFolder}\\temp\\shifted.pto\" \"{newPanoramaFolder}\\temp\\resized.pto\"",
+                        $"--crop=AUTO -o \"{Path.Join(tempPanoramaFolder, "shifted.pto")}\" \"{Path.Join(tempPanoramaFolder, "resized.pto")}\"",
                         "pano_modify"
                     );
 
@@ -390,7 +428,7 @@ public unsafe class PanoramaHelper: IDisposable
                     CallCMD(
                         threadEventId,
                         nonaPath,
-                        $"-o \"{newPanoramaFolder}\\stitches\\stitch\" \"{newPanoramaFolder}\\temp\\shifted.pto\"",
+                        $"-o \"{Path.Join(stitchesPanoramaFolder, "stitch")}\" \"{Path.Join(tempPanoramaFolder, "shifted.pto")}\"",
                         "nona"
                     );
 
@@ -400,7 +438,7 @@ public unsafe class PanoramaHelper: IDisposable
                         CallCMD(
                             threadEventId,
                             enblendPath,
-                            $"-o \"{configuration.PanoramaFolder}\\finished_panorama\\{newPanoramaName}.tif\" \"{newPanoramaFolder}\\stitches\\stitch*.tif\"",
+                            $"-o \"{Path.Join(finishedPanoramaFolder, $"{newPanoramaName}.tif")}\" \"{Path.Join(stitchesPanoramaFolder, "stitch*.tif")}\"",
                             "enblend"
                         );
                     }
@@ -410,7 +448,7 @@ public unsafe class PanoramaHelper: IDisposable
                         CallCMD(
                             threadEventId,
                             verdandiPath,
-                            $"-o \"{configuration.PanoramaFolder}\\finished_panorama\\{newPanoramaName}.tif\" \"{newPanoramaFolder}\\stitches\\stitch*.tif\"",
+                            $"-o \"{Path.Join(finishedPanoramaFolder, $"{newPanoramaName}.tif")}\" \"{Path.Join(stitchesPanoramaFolder, "stitch*.tif")}\"",
                             "verdandi"
                         );
                     }
@@ -419,8 +457,8 @@ public unsafe class PanoramaHelper: IDisposable
                     MainWindow.ActiveTask("StartPanoramaProcess | convert","Creating panorama of screenshots!\r\nConverting to webp", threadEventId);
                     ConvertTifToWebp(
                         threadEventId,
-                        $"{configuration.PanoramaFolder}\\finished_panorama\\{newPanoramaName}.tif",
-                        $"{configuration.PanoramaFolder}\\finished_panorama_webp\\{newPanoramaName}.webp"
+                        Path.Join(finishedPanoramaFolder, $"{newPanoramaName}.tif"),
+                        Path.Join(finishedPanoramaWebpFolder, $"{newPanoramaName}.webp")
                     );
 
                     FinishingTouches();
@@ -498,8 +536,18 @@ public unsafe class PanoramaHelper: IDisposable
         try
         {
             var process = new Process();
-            process.StartInfo.FileName = "cmd.exe"; // oder "bash" unter Linux/macOS
-            process.StartInfo.Arguments = @$"/c {exePath} {command}";
+
+            if (Dalamud.Utility.Util.GetHostPlatform() == OSPlatform.Windows)
+            {
+                process.StartInfo.FileName = "cmd.exe"; // oder "bash" unter Linux/macOS
+                process.StartInfo.Arguments = @$"/c {exePath} {command}";
+            }
+            else
+            {
+                process.StartInfo.FileName = "/bin/bash"; // oder "bash" unter Linux/macOS
+                process.StartInfo.Arguments = @$"-c {exePath} {command}";
+            }
+
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
@@ -578,10 +626,12 @@ public unsafe class PanoramaHelper: IDisposable
                                     .OrderByDescending(f => f.LastWriteTime)
                                     .FirstOrDefault();
 
-            if (!Directory.Exists($@"{currentEventId.PanoramaPath}\images"))
-                Directory.CreateDirectory($@"{currentEventId.PanoramaPath}\images");
+            var imagesPath = Path.Join(currentEventId.PanoramaPath, "images");
+            if (!Directory.Exists($@"{imagesPath}"))
+                Directory.CreateDirectory($@"{imagesPath}");
 
-            newScreenshot.MoveTo($@"{currentEventId.PanoramaPath}\images\row{imageCountV.ToString().PadLeft(2, '0')}_col{imageCountH.ToString().PadLeft(2, '0')}.jpg", true);
+            var screenshotName = $"row{imageCountV.ToString().PadLeft(2, '0')}_col{imageCountH.ToString().PadLeft(2, '0')}.jpg";
+            newScreenshot.MoveTo(Path.Join(imagesPath, screenshotName), true);
             LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot moved. Row: {imageCountV.ToString().PadLeft(2, '0')} Column: {imageCountH.ToString().PadLeft(2, '0')}", currentEventId);
         }
         catch (Exception e)
