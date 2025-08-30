@@ -1,11 +1,12 @@
 [![Discord](https://img.shields.io/badge/Join-Discord-blue)](https://discord.gg/5gesjDfDBr)
 
 # Echorama - Capture the world
+Turn your FFXIV snapshots into sweeping scenic views—effortlessly capture the grandeur of Eorzea.
 
-Echorama allows you to create immersive panorama screenshots inside FFXIV.  
-It automates the process of capturing multi-angle screenshots and stitching them into a wide panorama view.  
-It was initially only meant for the creator of the eorguessr game to allow him/her to generate panoramas in a faster and more reliable way, it evolved from there.
----
+## Dislaimer: 
+* Echorama allows you to create immersive panorama screenshots inside FFXIV.  
+* It automates the process of capturing multi-angle screenshots and stitching them into a wide panorama view.  
+* It was initially only meant for the creator of the eorguessr game to allow him/her to generate panoramas in a faster and more reliable way, it evolved from there.
 
 ## Installation
 
