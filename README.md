@@ -14,3 +14,6 @@ Turn your FFXIV snapshots into sweeping scenic views—effortlessly capture the 
 * Search for 'Echorama' in Dalamud and install the plugin
 * Use /er to open the plugin's window
 * Have Fun!
+
+## Thanks
+* Everyone contributing on the plugin-dev and dalamud-dev channels on the official [Dalamud](https://github.com/goatcorp/Dalamud) discord!
