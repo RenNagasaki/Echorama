@@ -6,7 +6,7 @@ Turn your FFXIV snapshots into sweeping scenic views—effortlessly capture the 
 ## Dislaimer: 
 * Echorama allows you to create immersive panorama screenshots inside FFXIV.  
 * It automates the process of capturing multi-angle screenshots and stitching them into a wide panorama view.  
-* It was initially only meant for the creator of the eorguessr game to allow him/her to generate panoramas in a faster and more reliable way, it evolved from there.
+* It was initially only meant for the creator of the [Eorguessr](https://eorguessr.com/) game to allow him/her to generate panoramas in a faster and more reliable way, it evolved from there.
 
 ## Installation
 
