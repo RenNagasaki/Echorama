@@ -260,8 +260,8 @@ public unsafe class PanoramaHelper: IDisposable
         var minutes = seconds / 60;
         var bells = minutes / 60;
         var suns = bells / 24;
-        var week = suns / 8;
-        var moons = week / 4;
+        var weeks = suns / 8;
+        var moons = weeks / 4;
         var years = moons / 12;
         return $"{(bells % 24).ToString().PadLeft(2,'0')}{(minutes % 60).ToString().PadLeft(2,'0')}";
     }
@@ -275,7 +275,7 @@ public unsafe class PanoramaHelper: IDisposable
             camera->minVRotation = -Constants.MAXVROTA;
             var hRota = MathF.PI - (MathF.PI / (configuration.ColumnAmount / 2f) * (imageCountH - 1));
             camera->currentHRotation = hRota;
-            var vRotaStep = Constants.MAXVROTA / ((configuration.RowAmount - 1) / 2);
+            var vRotaStep = Constants.MAXVROTA / ((configuration.RowAmount - 1f) / 2);
             var vRota = configuration.RowAmount > 1 ? Constants.MAXVROTA - (vRotaStep * (imageCountV - 1)) : 0;
             camera->currentVRotation = vRota;
 
@@ -612,12 +612,12 @@ public unsafe class PanoramaHelper: IDisposable
         {
             var imageCountVert = imageCountV;
             var imageCountHor = imageCountH;
+            CalculatePanoramaLogic();
             System.Threading.Tasks.Task.Run(() =>
             {
                 LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot taken. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", currentEventId);
 
                 MoveLastScreenshot(imageCountVert, imageCountHor);
-                CalculatePanoramaLogic();
             });
         }
 
