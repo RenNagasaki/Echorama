@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Dalamud.Game;
 using Dalamud.Hooking;
+using Dalamud.Utility;
 using Dalamud.Utility.Signatures;
 using Echorama.DataClasses;
 using Echorama.Windows;
@@ -42,6 +43,7 @@ public unsafe class PanoramaHelper: IDisposable
     private string ptoVarPath;
     private string cpFindPath;
     private string cpCleanPath;
+    private string linefindPath;
     private string panoModifyPath;
     private string autoOptimiserPath;
     private string nonaPath;
@@ -58,7 +60,7 @@ public unsafe class PanoramaHelper: IDisposable
     private uint oldHeight;
     private float verticalAngle = 30f;
     private float horizontalAngle = 45f;
-    private int anchor = 24;
+    private int anchor = 19;
     private readonly float origMaxVRota;
     private readonly float origMinVRota;
     private float origCamX;
@@ -85,6 +87,7 @@ public unsafe class PanoramaHelper: IDisposable
             ptoVarPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "pto_var.exe");
             cpFindPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "cpfind.exe");
             cpCleanPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "cpclean.exe");
+            linefindPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "linefind.exe");
             panoModifyPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "pano_modify.exe");
             autoOptimiserPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "autooptimiser.exe");
             nonaPath = Path.Join(Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName), "bin", "nona.exe");
@@ -141,12 +144,28 @@ public unsafe class PanoramaHelper: IDisposable
     {
         try
         {
+            if (!string.IsNullOrWhiteSpace(configuration.PanoramaName))
+            {
+                currentEventId = new EREventId();
+                currentEventId.PanoramaPath =
+                    Path.Join(configuration.PanoramaFolder, configuration.PanoramaName);
+                currentEventId.PanoramaName = configuration.PanoramaName;
+                StartPanoramaProcess();
+                
+                return;
+            }
+
             if (!DoingPanorama)
             {
                 currentEventId = new EREventId();
+                var camera = Common.CameraManager->worldCamera;
                 LogHelper.Start(MethodBase.GetCurrentMethod()!.Name, currentEventId);
                 LogHelper.Info(MethodBase.GetCurrentMethod()!.Name, "Creating panorama", currentEventId);
-                var logMsg = $"VAngle: {verticalAngle}, HAngle: {horizontalAngle}, Anchor: {anchor}";
+                anchor = configuration.RowAmount > 1
+                             ? ((configuration.RowAmount - 1) / 2) * configuration.ColumnAmount
+                             : 0;
+                //anchor -= (configuration.ColumnAmount - 1);
+                var logMsg = $"VAngle: {verticalAngle}, HAngle: {horizontalAngle}, Anchor: {anchor}, CurrentFOV: {camera->currentFoV}";
                 MainWindow.ActiveTask(
                     MethodBase.GetCurrentMethod().Name,
                     $"Creating panorama screenshots, hands of mouse and keyboard(or controller)!!!\r\n{logMsg}",
@@ -154,12 +173,14 @@ public unsafe class PanoramaHelper: IDisposable
                 );
 
                 var localPlayer = Plugin.ClientState.LocalPlayer;
-                panoramaLocation = localPlayer.Position;
 
                 var weatherId = WeatherManager.Instance()->GetCurrentWeather();
                 var weatherSheet = Plugin.DataManager.GetExcelSheet<Weather>(ClientLanguage.English);
                 var weatherName = weatherSheet.GetRow(weatherId).Name.ExtractText();
                 var eorzeaTime = EorzeanDateTime(Framework.Instance()->ClientTime.EorzeaTime);
+                var map = Plugin.DataManager.GetExcelSheet<Map>(ClientLanguage.English)!.GetRow(Plugin.ClientState.MapId);
+                var territoryType = Plugin.DataManager.GetExcelSheet<TerritoryTypeTransient>(ClientLanguage.English)!.GetRow(Plugin.ClientState.TerritoryType);
+                panoramaLocation = MapUtil.WorldToMap(localPlayer.Position, map.OffsetX, map.OffsetY, territoryType.OffsetZ, map.SizeFactor, true);
                 var locationString =
                     $"{panoramaLocation.X.ToString("F0", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Y.ToString("F0", CultureInfo.InvariantCulture)}_" +
@@ -182,14 +203,10 @@ public unsafe class PanoramaHelper: IDisposable
                 verticalAngle =
                     180f / (configuration.RowAmount > 1 ? configuration.RowAmount - 1 : configuration.RowAmount);
                 horizontalAngle = 360f / configuration.ColumnAmount;
-                anchor = configuration.RowAmount > 1
-                             ? (configuration.RowAmount - 1) / 2 * configuration.ColumnAmount
-                             : 0;
 
                 imageCountH = 0;
                 imageCountV = 1;
 
-                var camera = Common.CameraManager->worldCamera;
                 camera->mode = 0;
 
                 var device = Device.Instance();
@@ -212,7 +229,7 @@ public unsafe class PanoramaHelper: IDisposable
                     RaptureAtkModule.Instance()->SetUiVisibility(false);
                     DoingPanorama = true;
                     fov = 2 * Math.Atan(Math.Tan(camera->currentFoV / 2.0) * (curWidth / curHeight)) *
-                          (180.0 / Math.PI);
+                          180.0 / Math.PI;
                     CalculatePanoramaLogic();
                     timer.Stop();
                 };
@@ -271,8 +288,28 @@ public unsafe class PanoramaHelper: IDisposable
         }
     }
 
-    private void FinishingTouches()
+    private void FinishingTouches(string panoramaFolder, string tempFolder,string stitchesFolder,string imagesFolder)
     {
+        try
+        {
+            if (!configuration.KeepStitches && !configuration.KeepTemp && !configuration.KeepImages)
+                Directory.Delete(panoramaFolder, true);
+            else
+            {
+                if (!configuration.KeepImages)
+                    Directory.Delete(imagesFolder, true);
+
+                if (!configuration.KeepTemp)
+                    Directory.Delete(tempFolder, true);
+
+                if (!configuration.KeepStitches)
+                    Directory.Delete(stitchesFolder, true);
+            }
+        }
+        catch (Exception e)
+        {
+            LogHelper.Error(MethodBase.GetCurrentMethod()!.Name, e, currentEventId);
+        }
     }
 
     public void CalculatePanoramaLogic()
@@ -317,7 +354,7 @@ public unsafe class PanoramaHelper: IDisposable
     {
         try
         {
-            Thread thread = new Thread(() =>
+            System.Threading.Tasks.Task.Run(() =>
             {
                 try
                 {
@@ -349,9 +386,10 @@ public unsafe class PanoramaHelper: IDisposable
                     );
 
                     MainWindow.ActiveTask("StartPanoramaProcess | pto_var","Creating panorama of screenshots!\r\nCalling pto_var", threadEventId);
-                    int imageCount = 0;
+                    int imageCount = 0; 
                     float hAngle = 0;
                     float vAngle = 90;
+                    
                     for (int y = 0; y < configuration.RowAmount; y++)
                     {
                         for (int x = 0; x < configuration.ColumnAmount; x++)
@@ -371,40 +409,43 @@ public unsafe class PanoramaHelper: IDisposable
                     CallCMD(
                         threadEventId,
                         ptoVarPath,
-                        $"--modify-opt --opt=y,p,!v --anchor={anchor} --color-anchor={anchor} -o \"{Path.Join(tempPanoramaFolder, $"anchored.pto")}\" \"{Path.Join(tempPanoramaFolder, $"panorama{imageCount - 1}.pto")}\"",
+                        $"--modify-opt --opt=y,p,r,!v --anchor={anchor} --color-anchor={anchor} -o \"{Path.Join(tempPanoramaFolder, $"anchored.pto")}\" \"{Path.Join(tempPanoramaFolder, $"panorama{imageCount - 1}.pto")}\"",
                         "pto_var"
                     );
 
-                    var nextPto = "anchored";
-                    if (configuration.ExperimentalCPDetection)
-                    {
-                        MainWindow.ActiveTask("StartPanoramaProcess | cpfind","Creating panorama of screenshots!\r\nCalling cpfind", threadEventId);
-                        CallCMD(
-                            threadEventId,
-                            cpFindPath,
-                            $"--prealigned -o \"{Path.Join(tempPanoramaFolder, $"cpfind.pto")}\" \"{Path.Join(tempPanoramaFolder, $"{nextPto}.pto")}\"",
-                            "cpfind"
-                        );
+                    MainWindow.ActiveTask("StartPanoramaProcess | cpfind","Creating panorama of screenshots!\r\nCalling cpfind", threadEventId);
+                    CallCMD(
+                        threadEventId,
+                        cpFindPath,
+                        $"--prealigned -o \"{Path.Join(tempPanoramaFolder, $"cpfind.pto")}\" \"{Path.Join(tempPanoramaFolder, "anchored.pto")}\"",
+                        "cpfind"
+                    );
 
-                        MainWindow.ActiveTask("StartPanoramaProcess | cpclean","Creating panorama of screenshots!\r\nCalling cpclean", threadEventId);
-                        CallCMD(
-                            threadEventId,
-                            cpCleanPath,
-                            $"-o \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpfind.pto")}\"",
-                            "cpclean"
-                        );
+                    MainWindow.ActiveTask("StartPanoramaProcess | cpclean","Creating panorama of screenshots!\r\nCalling cpclean", threadEventId);
+                    CallCMD(
+                        threadEventId,
+                        cpCleanPath,
+                        $"-o \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpfind.pto")}\"",
+                        "cpclean"
+                    );
 
-                        MainWindow.ActiveTask("StartPanoramaProcess | autooptimiser","Creating panorama of screenshots!\r\nCalling autooptimiser", threadEventId);
-                        CallCMD(
-                            threadEventId,
-                            autoOptimiserPath,
-                            $"-a -l -s -v={fov.ToString("F6", CultureInfo.InvariantCulture)}  -o \"{Path.Join(tempPanoramaFolder, $"autooptimiser.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\"",
-                            "autooptimiser"
-                        );
-                        nextPto = "autooptimiser";
-                    }
+                    /*MainWindow.ActiveTask("StartPanoramaProcess | linefind","Creating panorama of screenshots!\r\nCalling Linefind", threadEventId);
+                    CallCMD(
+                        threadEventId,
+                        linefindPath,
+                        $"-o \"{Path.Join(tempPanoramaFolder, $"linefind.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\"",
+                        "linefind"
+                    );*/
 
-                    var lines = File.ReadAllLines(Path.Join(tempPanoramaFolder, $"{nextPto}.pto"));
+                    MainWindow.ActiveTask("StartPanoramaProcess | autooptimiser","Creating panorama of screenshots!\r\nCalling autooptimiser", threadEventId);
+                    CallCMD(
+                        threadEventId,
+                        autoOptimiserPath,
+                        $"-m -o \"{Path.Join(tempPanoramaFolder, $"autooptimiser.pto")}\" \"{Path.Join(tempPanoramaFolder, $"cpclean.pto")}\"",
+                        "autooptimiser"
+                    );
+
+                    /*var lines = File.ReadAllLines(Path.Join(tempPanoramaFolder, $"{nextPto}.pto"));
                     for (int i = 0; i < lines.Length; i++)
                     {
                         if (lines[i].StartsWith("p "))
@@ -413,21 +454,54 @@ public unsafe class PanoramaHelper: IDisposable
                             break;
                         }
                     }
-                    File.WriteAllLines(Path.Join(tempPanoramaFolder, "resized.pto"), lines);
+                    File.WriteAllLines(Path.Join(tempPanoramaFolder, "resized.pto"), lines);*/
 
                     MainWindow.ActiveTask("StartPanoramaProcess | pano_modify","Creating panorama of screenshots!\r\nCalling pano_modify", threadEventId);
                     CallCMD(
                         threadEventId,
                         panoModifyPath,
-                        $"--crop=AUTO -o \"{Path.Join(tempPanoramaFolder, "shifted.pto")}\" \"{Path.Join(tempPanoramaFolder, "resized.pto")}\"",
+                        $"--crop=AUTO --canvas=AUTO -o \"{Path.Join(tempPanoramaFolder, "shifted.pto")}\" \"{Path.Join(tempPanoramaFolder, "autooptimiser.pto")}\"",
                         "pano_modify"
                     );
+                    
+                    var pto = File.ReadAllLines(Path.Join(tempPanoramaFolder, "shifted.pto"));
+                    int w=0,h=0;
+                    foreach (var line in pto)
+                    {
+                        if (line.StartsWith("p "))
+                        {
+                            var parts = line.Split(' ');
+                            foreach (var t in parts)
+                            {
+                                if (t.StartsWith("w")) w = int.Parse(t.Substring(1));
+                                if (t.StartsWith("h")) h = int.Parse(t.Substring(1));
+                            }
+                            break;
+                        }
+                    }
+                    double scale = Math.Min(1.0, Math.Min(configuration.PanoramaWidth / (double)w, configuration.PanoramaHeight / (double)h));
+                    int percent = (int)Math.Floor(scale * 100.0);
+
+                    var nextPto = "shifted";
+                    if (percent < 100)
+                    {
+                        MainWindow.ActiveTask("StartPanoramaProcess | pano_modify",
+                                              "Creating panorama of screenshots!\r\nCalling pano_modify",
+                                              threadEventId);
+                        CallCMD(
+                            threadEventId,
+                            panoModifyPath,
+                            $"--canvas={percent}% --crop=AUTO -o \"{Path.Join(tempPanoramaFolder, "auto_sized.pto")}\" \"{Path.Join(tempPanoramaFolder, "shifted.pto")}\"",
+                            "pano_modify"
+                        );
+                        nextPto = "auto_sized";
+                    }
 
                     MainWindow.ActiveTask("StartPanoramaProcess | nona","Creating panorama of screenshots!\r\nCalling nona", threadEventId);
                     CallCMD(
                         threadEventId,
                         nonaPath,
-                        $"-o \"{Path.Join(stitchesPanoramaFolder, "stitch")}\" \"{Path.Join(tempPanoramaFolder, "shifted.pto")}\"",
+                        $"-o \"{Path.Join(stitchesPanoramaFolder, "stitch")}\" \"{Path.Join(tempPanoramaFolder, $"{nextPto}.pto")}\"",
                         "nona"
                     );
 
@@ -460,7 +534,7 @@ public unsafe class PanoramaHelper: IDisposable
                         Path.Join(finishedPanoramaWebpFolder, $"{newPanoramaName}.webp")
                     );
 
-                    FinishingTouches();
+                    FinishingTouches(newPanoramaFolder, tempPanoramaFolder, stitchesPanoramaFolder, Path.Join(newPanoramaFolder, "images"));
                     MainWindow.ActiveTask("StartPanoramaProcess","DONE!!!", threadEventId);
                     LogHelper.End("StartPanoramaProcess", threadEventId);
                 }
@@ -469,49 +543,13 @@ public unsafe class PanoramaHelper: IDisposable
                     LogHelper.Error(MethodBase.GetCurrentMethod()!.Name, e, currentEventId);
                 }
             });
-
-            thread.Start();
         }
         catch (Exception e)
         {
             LogHelper.Error(MethodBase.GetCurrentMethod()!.Name, e, currentEventId);
         }
     }
-
-    private string ReplaceDimensionsInPLine(string pLine, int newWidth, int newHeight)
-    {
-        // Findet die w= und h= Teile in der p-Line und ersetzt sie durch die neuen Werte
-        string[] parts = pLine.Split(' ');
-        for (int i = 0; i < parts.Length; i++)
-        {
-            if (!configuration.CustomPanoramaDimensions)
-            {
-                if (parts[i].StartsWith("w") && Convert.ToInt32(parts[i].Replace("w", "")) > 16380)
-                {
-                    parts[i] = "w" + 16380;
-                }
-                else if (parts[i].StartsWith("h") && Convert.ToInt32(parts[i].Replace("h", "")) > 8190)
-                {
-                    parts[i] = "h" + 8190;
-                }
-            }
-            else
-            {
-                if (parts[i].StartsWith("w"))
-                {
-                    parts[i] = "w" + configuration.PanoramaWidth;
-                }
-                else if (parts[i].StartsWith("h"))
-                {
-                    parts[i] = "h" + configuration.PanoramaHeight;
-                }
-            }
-        }
-
-        // Rekonstruiert die Zeile mit den neuen Werten
-        return string.Join(" ", parts);
-    }
-
+    
     internal void ConvertTifToWebp(EREventId eventId ,string tifPath, string webpPath)
     {
         try {
@@ -519,7 +557,7 @@ public unsafe class PanoramaHelper: IDisposable
             {
                 image.Format = MagickFormat.WebP;
                 image.Depth = 32;
-                image.Quality = 95; // verlustbehaftet
+                image.Quality = configuration.WebPQuality; // verlustbehaftet
                 image.Write(webpPath);
             }
 
@@ -572,10 +610,15 @@ public unsafe class PanoramaHelper: IDisposable
 
         if (DoingPanorama)
         {
-            LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot taken. Row: {imageCountV.ToString().PadLeft(2, '0')} Column: {imageCountH.ToString().PadLeft(2, '0')}", currentEventId);
+            var imageCountVert = imageCountV;
+            var imageCountHor = imageCountH;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot taken. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", currentEventId);
 
-            MoveLastScreenshot();
-            CalculatePanoramaLogic();
+                MoveLastScreenshot(imageCountVert, imageCountHor);
+                CalculatePanoramaLogic();
+            });
         }
 
         return outcome;
@@ -614,7 +657,7 @@ public unsafe class PanoramaHelper: IDisposable
         return 0;
     }
 
-    private void MoveLastScreenshot()
+    private void MoveLastScreenshot(int imageCountVert, int imageCountHor)
     {
         try
         {
@@ -629,9 +672,9 @@ public unsafe class PanoramaHelper: IDisposable
             if (!Directory.Exists($@"{imagesPath}"))
                 Directory.CreateDirectory($@"{imagesPath}");
 
-            var screenshotName = $"row{imageCountV.ToString().PadLeft(2, '0')}_col{imageCountH.ToString().PadLeft(2, '0')}.jpg";
+            var screenshotName = $"row{imageCountVert.ToString().PadLeft(2, '0')}_col{imageCountHor.ToString().PadLeft(2, '0')}.jpg";
             newScreenshot.MoveTo(Path.Join(imagesPath, screenshotName), true);
-            LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot moved. Row: {imageCountV.ToString().PadLeft(2, '0')} Column: {imageCountH.ToString().PadLeft(2, '0')}", currentEventId);
+            LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot moved. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", currentEventId);
         }
         catch (Exception e)
         {

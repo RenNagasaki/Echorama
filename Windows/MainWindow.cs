@@ -50,14 +50,14 @@ public class MainWindow : Window, IDisposable
             if (ImGui.CollapsingHeader("General Options:"))
             {
                 var screenshotFolder = configuration.ScreenshotFolder;
-                if (ImGui.InputText("Screenshot folder##ERScreenshotFolder", ref screenshotFolder, 256))
+                if (ImGui.InputText("Screenshot folder (Location where FFXIV Screenshots get saved)##ERScreenshotFolder", ref screenshotFolder, 256))
                 {
                     configuration.ScreenshotFolder = screenshotFolder;
                     configuration.Save();
                 }
 
                 var panoramaFolder = configuration.PanoramaFolder;
-                if (ImGui.InputText("Panorama folder##ERPanoramaFolder", ref panoramaFolder, 256))
+                if (ImGui.InputText("Panorama folder(Working directory for this plugin)##ERPanoramaFolder", ref panoramaFolder, 256))
                 {
                     configuration.PanoramaFolder = panoramaFolder;
                     configuration.Save();
@@ -124,6 +124,19 @@ public class MainWindow : Window, IDisposable
                     configuration.PanoramaWidth = panoramaHeight * 2;
                     configuration.Save();
                 }
+                var webPQuality = configuration.WebPQuality;
+                if (ImGui.InputUInt("WebP Quality##ERWebPQuality", ref webPQuality, 1))
+                {
+                    if (webPQuality > 100)
+                        webPQuality = 100;
+                    
+                    if (webPQuality < 1)
+                        webPQuality = 1;
+
+                    configuration.WebPQuality = webPQuality;
+                    configuration.Save();
+                }
+                
                 /*var showCharacter = configuration.ShowCharacter;
                 if (ImGui.Checkbox("Show character in panorama (moves camera infront of player)##ERShowCharacter",
                                    ref showCharacter))
@@ -131,16 +144,7 @@ public class MainWindow : Window, IDisposable
                     configuration.ShowCharacter = showCharacter;
                     configuration.Save();
                 }*/
-
-                var experimentalCpDetection = configuration.ExperimentalCPDetection;
-                if (ImGui.Checkbox("Use Control Point detection (Experimental)##ERExperimentalCPDetection",
-                                   ref experimentalCpDetection))
-                {
-                    configuration.ExperimentalCPDetection = experimentalCpDetection;
-                    configuration.Save();
-                }
-
-                ImGui.SameLine();
+                
                 var multicoreGen = configuration.MulticoreGen;
                 if (ImGui.Checkbox("Use Multicore Generation (harder on the cpu, but faster)##ERMulticoreGen",
                                    ref multicoreGen))
@@ -148,6 +152,39 @@ public class MainWindow : Window, IDisposable
                     configuration.MulticoreGen = multicoreGen;
                     configuration.Save();
                 }
+                
+                ImGui.NewLine();
+                var keepImages = configuration.KeepImages;
+                if (ImGui.Checkbox("Keep Screenshots after generation##ERKeepImages",
+                                   ref keepImages))
+                {
+                    configuration.KeepImages = keepImages;
+                    configuration.Save();
+                }
+                ImGui.SameLine();
+                var keepTemp = configuration.KeepTemp;
+                if (ImGui.Checkbox("Keep Temp folder after generation##ERKeepTemp",
+                                   ref keepTemp))
+                {
+                    configuration.KeepTemp = keepTemp;
+                    configuration.Save();
+                }
+                ImGui.SameLine();
+                var keepStitches = configuration.KeepStitches;
+                if (ImGui.Checkbox("Keep Stitches folder after generation##ERKeepStitches",
+                                   ref keepStitches))
+                {
+                    configuration.KeepStitches = keepStitches;
+                    configuration.Save();
+                }
+            }
+            
+            var panoramaName = configuration.PanoramaName;
+            if (ImGui.InputText("Panorama Name (Will restart with already taken screenshots, leave empty to create new ones)##ERPanoramaName",
+                                ref panoramaName))
+            {
+                configuration.PanoramaName = panoramaName;
+                configuration.Save();
             }
 
             if (ImGui.Button("Create Panorama##ERCreatePano"))

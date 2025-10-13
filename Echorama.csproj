@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/13.0.0">
   <PropertyGroup>
-    <Version>0.0.0.4</Version>
+    <Version>0.0.0.5</Version>
     <Description>Create 360 Panorama Images of your current position.</Description>
     <PackageProjectUrl>https://github.com/RenNagasaki/Echorama</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
@@ -12,7 +12,7 @@
     <Authors>Ren Nagasaki</Authors>
     <Company>Ren Nagasaki</Company>
     <Product>Echorama</Product>
-    <AssemblyVersion>0.0.0.3</AssemblyVersion>
+    <AssemblyVersion></AssemblyVersion>
     <NeutralLanguage>en-001</NeutralLanguage>
   </PropertyGroup>
   <ItemGroup>
