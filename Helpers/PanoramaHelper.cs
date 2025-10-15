@@ -266,6 +266,44 @@ public unsafe class PanoramaHelper: IDisposable
         return $"{(bells % 24).ToString().PadLeft(2,'0')}{(minutes % 60).ToString().PadLeft(2,'0')}";
     }
 
+    public void CalculatePanoramaLogic()
+    {
+        try
+        {
+            imageCountH++;
+            if (imageCountH > configuration.ColumnAmount)
+            {
+                imageCountH = 1;
+                imageCountV++;
+                if (imageCountV > configuration.RowAmount)
+                {
+                    DoingPanorama = false;
+                    var camera = Common.CameraManager->worldCamera;
+                    camera->mode = 1;
+                    camera->maxVRotation = this.origMaxVRota;
+                    camera->minVRotation = this.origMinVRota;
+                    RaptureAtkModule.Instance()->SetUiVisibility(true);
+                    if (configuration.ScreenshotScale > 1)
+                    {
+                        var device = Device.Instance();
+                        device->NewWidth = oldWidth;
+                        device->NewHeight = oldHeight;
+                        device->RequestResolutionChange = 1;
+                    }
+
+                    StartPanoramaProcess();
+                    return;
+                }
+            }
+
+            DoCameraMovement();
+        }
+        catch (Exception e)
+        {
+            LogHelper.Error(MethodBase.GetCurrentMethod()!.Name, e, currentEventId);
+        }
+    }
+
     private void DoCameraMovement()
     {
         try
@@ -305,44 +343,6 @@ public unsafe class PanoramaHelper: IDisposable
                 if (!configuration.KeepStitches)
                     Directory.Delete(stitchesFolder, true);
             }
-        }
-        catch (Exception e)
-        {
-            LogHelper.Error(MethodBase.GetCurrentMethod()!.Name, e, currentEventId);
-        }
-    }
-
-    public void CalculatePanoramaLogic()
-    {
-        try
-        {
-            imageCountH++;
-            if (imageCountH > configuration.ColumnAmount)
-            {
-                imageCountH = 1;
-                imageCountV++;
-                if (imageCountV > configuration.RowAmount)
-                {
-                    DoingPanorama = false;
-                    var camera = Common.CameraManager->worldCamera;
-                    camera->mode = 1;
-                    camera->maxVRotation = this.origMaxVRota;
-                    camera->minVRotation = this.origMinVRota;
-                    RaptureAtkModule.Instance()->SetUiVisibility(true);
-                    if (configuration.ScreenshotScale > 1)
-                    {
-                        var device = Device.Instance();
-                        device->NewWidth = oldWidth;
-                        device->NewHeight = oldHeight;
-                        device->RequestResolutionChange = 1;
-                    }
-
-                    StartPanoramaProcess();
-                    return;
-                }
-            }
-
-            DoCameraMovement();
         }
         catch (Exception e)
         {
@@ -612,13 +612,13 @@ public unsafe class PanoramaHelper: IDisposable
         {
             var imageCountVert = imageCountV;
             var imageCountHor = imageCountH;
-            CalculatePanoramaLogic();
             System.Threading.Tasks.Task.Run(() =>
             {
                 LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot taken. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", currentEventId);
 
                 MoveLastScreenshot(imageCountVert, imageCountHor);
             });
+            CalculatePanoramaLogic();
         }
 
         return outcome;
