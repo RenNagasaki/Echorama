@@ -13,6 +13,7 @@ using Dalamud.Utility.Signatures;
 using Echorama.DataClasses;
 using Echorama.Windows;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -28,6 +29,7 @@ namespace Echorama.Helpers;
 public unsafe class PanoramaHelper: IDisposable
 {
     internal static bool DoingPanorama = false;
+    public static TerritoryInfo* AreaInfo => TerritoryInfo.Instance();
 
     private const int ScreenshotKey = 551;
     private delegate byte IsInputIdClickedDelegate(UIInputData* uiInputData, int key);
@@ -175,24 +177,24 @@ public unsafe class PanoramaHelper: IDisposable
                 var localPlayer = Plugin.ClientState.LocalPlayer;
 
                 var weatherId = WeatherManager.Instance()->GetCurrentWeather();
-                var weatherSheet = Plugin.DataManager.GetExcelSheet<Weather>(ClientLanguage.English);
+                var weatherSheet = Plugin.DataManager.GetExcelSheet<Weather>(Plugin.ClientLanguage);
                 var weatherName = weatherSheet.GetRow(weatherId).Name.ExtractText();
                 var eorzeaTime = EorzeanDateTime(Framework.Instance()->ClientTime.EorzeaTime);
-                var map = Plugin.DataManager.GetExcelSheet<Map>(ClientLanguage.English)!.GetRow(Plugin.ClientState.MapId);
-                var territoryType = Plugin.DataManager.GetExcelSheet<TerritoryTypeTransient>(ClientLanguage.English)!.GetRow(Plugin.ClientState.TerritoryType);
+                var map = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Experimental.Map>(Plugin.ClientLanguage)!.GetRow(Plugin.ClientState.MapId);
+                var territoryType = Plugin.DataManager.GetExcelSheet<TerritoryTypeTransient>(Plugin.ClientLanguage)!.GetRow(Plugin.ClientState.TerritoryType);
                 panoramaLocation = MapUtil.WorldToMap(localPlayer.Position, map.OffsetX, map.OffsetY, territoryType.OffsetZ, map.SizeFactor, true);
                 var locationString =
                     $"{panoramaLocation.X.ToString("F0", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Y.ToString("F0", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Z.ToString("F0", CultureInfo.InvariantCulture)}";
                 currentEventId.PanoramaPath =
-                    Path.Join(configuration.PanoramaFolder, $"{GetTerritoryName()}_{weatherName}_{locationString}_{eorzeaTime}");
+                    Path.Join(configuration.PanoramaFolder, $"{GetTerritoryName()}_{GetAreaName()}_{GetSubAreaName()}_{weatherName}_{locationString}_{eorzeaTime}");
                 locationString =
                     $"{panoramaLocation.X.ToString("F2", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Y.ToString("F2", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Z.ToString("F2", CultureInfo.InvariantCulture)}";
                 currentEventId.PanoramaName =
-                    $"{GetTerritoryName()}_{weatherName}_{locationString}_{eorzeaTime}"
+                    $"{GetTerritoryName()}_{GetAreaName()}_{GetSubAreaName()}_{weatherName}_{locationString}_{eorzeaTime}"
                 ;
 
                 if (configuration.ShowCharacter)
@@ -246,10 +248,28 @@ public unsafe class PanoramaHelper: IDisposable
         }
     }
 
-    private string GetTerritoryName()
+    public string GetSubAreaName()
+    {
+        var row = TerritoryInfo.Instance()->SubAreaPlaceNameId;
+        var subArea = Plugin.DataManager.GetExcelSheet<PlaceName>(Plugin.ClientLanguage).GetRow(row)
+                            .Name.ExtractText();
+        subArea = string.IsNullOrWhiteSpace(subArea) ? "NoSubArea" : subArea;
+        return subArea;
+    }
+
+    public string GetAreaName()
+    {
+        var row = TerritoryInfo.Instance()->AreaPlaceNameId;
+        var subArea = Plugin.DataManager.GetExcelSheet<PlaceName>(Plugin.ClientLanguage).GetRow(row)
+                            .Name.ExtractText();
+        subArea = string.IsNullOrWhiteSpace(subArea) ? "NoArea" : subArea;
+        return subArea;
+    }
+
+    public string GetTerritoryName()
     {
         var territoryRow = Plugin.ClientState.TerritoryType;
-        var Territory = Plugin.DataManager.GetExcelSheet<TerritoryType>(ClientLanguage.English)!.GetRow(territoryRow);
+        var Territory = Plugin.DataManager.GetExcelSheet<TerritoryType>(Plugin.ClientLanguage)!.GetRow(territoryRow);
 
         return Territory.PlaceName.Value.Name.ExtractText().Replace("ß", "ss").Replace("ü", "ue").Replace("Ü", "Ue").Replace("ö", "oe").Replace("Ö", "Oe").Replace("ä", "ae").Replace("Ä", "Ae");
     }

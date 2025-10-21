@@ -2,6 +2,7 @@
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using System.IO;
+using Dalamud.Game;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using Echorama.DataClasses;
@@ -22,6 +23,8 @@ public sealed class Plugin : IDalamudPlugin
     internal static PanoramaHelper PanoramaHelper { get; private set; } = null!;
 
     private const string CommandName = "/er";
+    
+    internal static ClientLanguage ClientLanguage => ClientState.ClientLanguage;
 
     public Configuration Configuration { get; init; }
 

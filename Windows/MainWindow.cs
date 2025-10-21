@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Echorama.DataClasses;
 using Echorama.Helpers;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game;
+using Lumina.Excel.Sheets.Experimental;
+using LogMessage = Echorama.DataClasses.LogMessage;
 
 
 namespace Echorama.Windows;
@@ -43,6 +47,7 @@ public class MainWindow : Window, IDisposable
 
     public void Dispose() { }
 
+    [Experimental("PendingExcelSchema")]
     public override unsafe void Draw()
     {
         using (var _ = ImRaii.Disabled(PanoramaHelper.DoingPanorama))
@@ -191,6 +196,9 @@ public class MainWindow : Window, IDisposable
             {
                 Plugin.PanoramaHelper.DoPanorama();
             }
+            
+            ImGui.Text("Current Location: ");
+            ImGui.Text(Plugin.PanoramaHelper.GetTerritoryName() + " - " + Plugin.PanoramaHelper.GetAreaName() + " - " + Plugin.PanoramaHelper.GetSubAreaName());
 
             ImGui.Text($"Currently working on:");
             ImGui.PushStyleColor(ImGuiCol.Text, Constants.ACTIVETASKCOLOR);
