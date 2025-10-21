@@ -23,8 +23,8 @@ public sealed class Plugin : IDalamudPlugin
     internal static PanoramaHelper PanoramaHelper { get; private set; } = null!;
 
     private const string CommandName = "/er";
-    
-    internal static ClientLanguage ClientLanguage => ClientState.ClientLanguage;
+
+    internal static ClientLanguage ClientLanguage => ClientLanguage.English;//ClientState.ClientLanguage;
 
     public Configuration Configuration { get; init; }
 

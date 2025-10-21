@@ -198,7 +198,7 @@ public class MainWindow : Window, IDisposable
             }
             
             ImGui.Text("Current Location: ");
-            ImGui.Text(Plugin.PanoramaHelper.GetTerritoryName() + " - " + Plugin.PanoramaHelper.GetAreaName() + " - " + Plugin.PanoramaHelper.GetSubAreaName());
+            ImGui.Text(Plugin.PanoramaHelper.GetTerritoryName() + " / " + Plugin.PanoramaHelper.GetTerritorySubName() + " / " + Plugin.PanoramaHelper.GetAreaName() + " / " + Plugin.PanoramaHelper.GetSubAreaName());
 
             ImGui.Text($"Currently working on:");
             ImGui.PushStyleColor(ImGuiCol.Text, Constants.ACTIVETASKCOLOR);

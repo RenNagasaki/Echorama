@@ -188,13 +188,13 @@ public unsafe class PanoramaHelper: IDisposable
                     $"{panoramaLocation.Y.ToString("F0", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Z.ToString("F0", CultureInfo.InvariantCulture)}";
                 currentEventId.PanoramaPath =
-                    Path.Join(configuration.PanoramaFolder, $"{GetTerritoryName()}_{GetAreaName()}_{GetSubAreaName()}_{weatherName}_{locationString}_{eorzeaTime}");
+                    Path.Join(configuration.PanoramaFolder, $"{GetTerritoryName()}_{GetTerritorySubName()}_{GetAreaName()}_{GetSubAreaName()}_{weatherName}_{locationString}_{eorzeaTime}");
                 locationString =
                     $"{panoramaLocation.X.ToString("F2", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Y.ToString("F2", CultureInfo.InvariantCulture)}_" +
                     $"{panoramaLocation.Z.ToString("F2", CultureInfo.InvariantCulture)}";
                 currentEventId.PanoramaName =
-                    $"{GetTerritoryName()}_{GetAreaName()}_{GetSubAreaName()}_{weatherName}_{locationString}_{eorzeaTime}"
+                    $"{GetTerritoryName()}_{GetTerritorySubName()}_{GetAreaName()}_{GetSubAreaName()}_{weatherName}_{locationString}_{eorzeaTime}"
                 ;
 
                 if (configuration.ShowCharacter)
@@ -266,12 +266,22 @@ public unsafe class PanoramaHelper: IDisposable
         return subArea;
     }
 
+    public string GetTerritorySubName()
+    {
+        var map = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Experimental.Map>(Plugin.ClientLanguage).GetRow(Plugin.ClientState.MapId);
+        var placeNameSub = Plugin.DataManager.GetExcelSheet<PlaceName>(Plugin.ClientLanguage).GetRow(map.PlaceNameSub.RowId);
+        var territoryName = placeNameSub.Name.ExtractText() ?? "NoTerritorySub";
+
+        return territoryName;
+    }
+
     public string GetTerritoryName()
     {
-        var territoryRow = Plugin.ClientState.TerritoryType;
-        var Territory = Plugin.DataManager.GetExcelSheet<TerritoryType>(Plugin.ClientLanguage)!.GetRow(territoryRow);
+        var map = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Experimental.Map>(Plugin.ClientLanguage).GetRow(Plugin.ClientState.MapId);
+        var placeName = Plugin.DataManager.GetExcelSheet<PlaceName>(Plugin.ClientLanguage).GetRow(map.PlaceName.RowId);
+        var territoryName = placeName.Name.ExtractText() ?? "NoTerritory";
 
-        return Territory.PlaceName.Value.Name.ExtractText().Replace("ß", "ss").Replace("ü", "ue").Replace("Ü", "Ue").Replace("ö", "oe").Replace("Ö", "Oe").Replace("ä", "ae").Replace("Ä", "Ae");
+        return territoryName;
     }
 
     private string EorzeanDateTime(long eorzeanUnixTime)
