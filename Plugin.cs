@@ -24,7 +24,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private const string CommandName = "/er";
 
-    internal static ClientLanguage ClientLanguage => ClientLanguage.English;//ClientState.ClientLanguage;
+    internal static ClientLanguage ClientLanguage => ClientState.ClientLanguage;
 
     public Configuration Configuration { get; init; }
 
