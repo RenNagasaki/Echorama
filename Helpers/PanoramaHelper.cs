@@ -754,6 +754,7 @@ public unsafe class PanoramaHelper: IDisposable
                 $"row{imageCountVert.ToString().PadLeft(2, '0')}_col{imageCountHor.ToString().PadLeft(2, '0')}.jpg";
             var moved = false;
             var moveTries = 0;
+            Exception lastEx = null;
 
             while (!moved && moveTries < 10)
             {
@@ -762,12 +763,18 @@ public unsafe class PanoramaHelper: IDisposable
                     newScreenshot.MoveTo(Path.Join(imagesPath, screenshotName), true);
                     moved = true;
                 }
-                catch { }
+                catch (Exception e)
+                {
+                    lastEx = e;
+                }
                 Thread.Sleep(500);
                 moveTries++;
             }
-
-            LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot moved. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", ScreenshotEventId);
+            
+            if (!moved)
+                LogHelper.Error(MethodBase.GetCurrentMethod()!.Name, new Exception($"Screenshot could not be moved. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", lastEx), ScreenshotEventId);
+            else
+                LogHelper.Debug(MethodBase.GetCurrentMethod()!.Name, $"Screenshot moved. Row: {imageCountVert.ToString().PadLeft(2, '0')} Column: {imageCountHor.ToString().PadLeft(2, '0')}", ScreenshotEventId);
         }
         catch (Exception e)
         {
