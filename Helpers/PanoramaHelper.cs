@@ -755,7 +755,7 @@ public unsafe class PanoramaHelper: IDisposable
             var moved = false;
             var moveTries = 0;
 
-            while (!moved && moveTries < 5)
+            while (!moved && moveTries < 10)
             {
                 try
                 {
@@ -763,7 +763,7 @@ public unsafe class PanoramaHelper: IDisposable
                     moved = true;
                 }
                 catch { }
-                Thread.Sleep(100);
+                Thread.Sleep(500);
                 moveTries++;
             }
 
