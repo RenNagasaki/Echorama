@@ -36,6 +36,7 @@ namespace Echorama.Helpers
             var text = $"----------------------------End-----------------------------------";
 
             Info(method, text, eventId);
+            eventId.Status = QueueStatus.Done;
         }
 
         public static void Info(string method, string text, EREventId eventId)

@@ -11,16 +11,17 @@ public class Configuration : IPluginConfiguration
 
     public string PanoramaFolder { get; set; } = "";
     public string ScreenshotFolder { get; set; } = "";
-    public string PanoramaName { get; set; } = "";
     public float ScreenshotScale { get; set; } = 1;
     public int ColumnAmount { get; set; } = 8;
     public int RowAmount { get; set; } = 7;
     public uint WebPQuality { get; set; } = 100;
     public int PanoramaWidth { get; set; } = 16380;
     public int PanoramaHeight { get; set; } = 8190;
+    public int MaxLogEntries { get; set; } = 500;
     public bool ShowGeneralDebugLog { get; set; } = true;
     public bool ShowGeneralErrorLog { get; set; } = true;
     public bool GeneralJumpToBottom { get; set; } = true;
+    public int ParallelThreads { get; set; } = 5;
     public bool ShowCharacter { get; set; } = false;
     public bool MulticoreGen { get; set; } = false;
     
