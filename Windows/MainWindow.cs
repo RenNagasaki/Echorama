@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -8,6 +9,7 @@ using Echorama.DataClasses;
 using Echorama.Helpers;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game;
+using Echorama.Enums;
 using Lumina.Excel.Sheets.Experimental;
 using LogMessage = Echorama.DataClasses.LogMessage;
 
@@ -18,7 +20,6 @@ public class MainWindow : Window, IDisposable
 {
     private Plugin plugin;
     private Configuration configuration;
-    internal static string activeTask = "";
     #region Logs
     private List<LogMessage> filteredLogsGeneral = [];
     private string filterLogsGeneralMethod = "";
@@ -52,184 +53,266 @@ public class MainWindow : Window, IDisposable
     {
         using (var _ = ImRaii.Disabled(PanoramaHelper.DoingPanorama))
         {
-            if (ImGui.CollapsingHeader("General Options:"))
+            using var tabBar = ImRaii.TabBar("Settings##EKSettingsTab");
+            if (tabBar)
             {
-                var screenshotFolder = configuration.ScreenshotFolder;
-                if (ImGui.InputText("Screenshot folder (Location where FFXIV Screenshots get saved)##ERScreenshotFolder", ref screenshotFolder, 256))
+                using (var tabItemGeneral = ImRaii.TabItem("General"))
                 {
-                    configuration.ScreenshotFolder = screenshotFolder;
-                    configuration.Save();
-                }
+                    if (tabItemGeneral)
+                    {
+                        if (ImGui.CollapsingHeader("General Options:"))
+                        {
+                            var screenshotFolder = configuration.ScreenshotFolder;
+                            if (ImGui.InputText(
+                                    "Screenshot folder (Location where FFXIV Screenshots get saved)##ERScreenshotFolder",
+                                    ref screenshotFolder, 256))
+                            {
+                                configuration.ScreenshotFolder = screenshotFolder;
+                                configuration.Save();
+                            }
 
-                var panoramaFolder = configuration.PanoramaFolder;
-                if (ImGui.InputText("Panorama folder(Working directory for this plugin)##ERPanoramaFolder", ref panoramaFolder, 256))
-                {
-                    configuration.PanoramaFolder = panoramaFolder;
-                    configuration.Save();
-                }
-            }
+                            var panoramaFolder = configuration.PanoramaFolder;
+                            if (ImGui.InputText("Panorama folder(Working directory for this plugin)##ERPanoramaFolder",
+                                                ref panoramaFolder, 256))
+                            {
+                                configuration.PanoramaFolder = panoramaFolder;
+                                configuration.Save();
+                            }
+                        }
 
-            if (ImGui.CollapsingHeader("Panorama Options:"))
-            {
-                var screenshotScale = configuration.ScreenshotScale;
-                if (ImGui.InputFloat("Screenshot Scale##ERScreenshotScale", ref screenshotScale, .5f))
-                {
-                    configuration.ScreenshotScale = screenshotScale;
-                    configuration.Save();
-                }
+                        if (ImGui.CollapsingHeader("Panorama Options:"))
+                        {
+                            var screenshotScale = configuration.ScreenshotScale;
+                            if (ImGui.InputFloat("Screenshot Scale##ERScreenshotScale", ref screenshotScale, .5f))
+                            {
+                                configuration.ScreenshotScale = screenshotScale;
+                                configuration.Save();
+                            }
 
-                var rowAmount = configuration.RowAmount;
-                if (ImGui.InputInt("Amount of vertical rows (decides the vertical angle used, default 7)##ERRowAmount",
-                                   ref rowAmount, 2))
-                {
-                    if (rowAmount % 2 == 0)
-                        rowAmount--;
+                            var rowAmount = configuration.RowAmount;
+                            if (ImGui.InputInt(
+                                    "Amount of vertical rows (decides the vertical angle used, default 7)##ERRowAmount",
+                                    ref rowAmount, 2))
+                            {
+                                if (rowAmount % 2 == 0)
+                                    rowAmount--;
 
-                    if (rowAmount < 1)
-                        rowAmount = 1;
+                                if (rowAmount < 1)
+                                    rowAmount = 1;
 
-                    configuration.RowAmount = rowAmount;
-                    configuration.Save();
-                }
+                                configuration.RowAmount = rowAmount;
+                                configuration.Save();
+                            }
 
-                var columnAmount = configuration.ColumnAmount;
-                if (ImGui.InputInt(
-                        "Amount of horizontal columns (decides the horizontal angle used, default 8)##ERColumnAmount",
-                        ref columnAmount, 1))
-                {
-                    configuration.ColumnAmount = columnAmount;
-                    configuration.Save();
-                }
-                var panoramaWidth = configuration.PanoramaWidth;
-                if (ImGui.InputInt("Panorama Width (7000-16380)##ERPanoramaWidth", ref panoramaWidth, 2))
-                {
-                    if (panoramaWidth % 2 != 0)
-                        panoramaWidth--;
+                            var columnAmount = configuration.ColumnAmount;
+                            if (ImGui.InputInt(
+                                    "Amount of horizontal columns (decides the horizontal angle used, default 8)##ERColumnAmount",
+                                    ref columnAmount, 1))
+                            {
+                                configuration.ColumnAmount = columnAmount;
+                                configuration.Save();
+                            }
 
-                    if (panoramaWidth > 16380)
-                        panoramaWidth = 16380;
+                            var panoramaWidth = configuration.PanoramaWidth;
+                            if (ImGui.InputInt("Panorama Width (7000-16380)##ERPanoramaWidth", ref panoramaWidth, 2))
+                            {
+                                if (panoramaWidth % 2 != 0)
+                                    panoramaWidth--;
 
-                    if (panoramaWidth < 7000)
-                        panoramaWidth = 7000;
+                                if (panoramaWidth > 16380)
+                                    panoramaWidth = 16380;
 
-                    configuration.PanoramaWidth = panoramaWidth;
-                    configuration.PanoramaHeight = panoramaWidth / 2;
-                    configuration.Save();
-                }
-                var panoramaHeight = configuration.PanoramaHeight;
-                if (ImGui.InputInt("Panorama Height (3500-8190)##ERPanoramaHeight", ref panoramaHeight, 1))
-                {
-                    if (panoramaHeight > 8190)
-                        panoramaHeight = 8190;
+                                if (panoramaWidth < 7000)
+                                    panoramaWidth = 7000;
 
-                    if (panoramaHeight < 3500)
-                        panoramaHeight = 3500;
+                                configuration.PanoramaWidth = panoramaWidth;
+                                configuration.PanoramaHeight = panoramaWidth / 2;
+                                configuration.Save();
+                            }
 
-                    configuration.PanoramaHeight = panoramaHeight;
-                    configuration.PanoramaWidth = panoramaHeight * 2;
-                    configuration.Save();
-                }
-                var webPQuality = configuration.WebPQuality;
-                if (ImGui.InputUInt("WebP Quality##ERWebPQuality", ref webPQuality, 1))
-                {
-                    if (webPQuality > 100)
-                        webPQuality = 100;
+                            var panoramaHeight = configuration.PanoramaHeight;
+                            if (ImGui.InputInt("Panorama Height (3500-8190)##ERPanoramaHeight", ref panoramaHeight, 1))
+                            {
+                                if (panoramaHeight > 8190)
+                                    panoramaHeight = 8190;
+
+                                if (panoramaHeight < 3500)
+                                    panoramaHeight = 3500;
+
+                                configuration.PanoramaHeight = panoramaHeight;
+                                configuration.PanoramaWidth = panoramaHeight * 2;
+                                configuration.Save();
+                            }
+
+                            var webPQuality = configuration.WebPQuality;
+                            if (ImGui.InputUInt("WebP Quality##ERWebPQuality", ref webPQuality, 1))
+                            {
+                                if (webPQuality > 100)
+                                    webPQuality = 100;
+
+                                if (webPQuality < 1)
+                                    webPQuality = 1;
+
+                                configuration.WebPQuality = webPQuality;
+                                configuration.Save();
+                            }
+
+                            /*var showCharacter = configuration.ShowCharacter;
+                            if (ImGui.Checkbox("Show character in panorama (moves camera infront of player)##ERShowCharacter",
+                                               ref showCharacter))
+                            {
+                                configuration.ShowCharacter = showCharacter;
+                                configuration.Save();
+                            }*/
+
+                            var multicoreGen = configuration.MulticoreGen;
+                            if (ImGui.Checkbox(
+                                    "Use Multicore Generation (harder on the cpu, but faster)##ERMulticoreGen",
+                                    ref multicoreGen))
+                            {
+                                configuration.MulticoreGen = multicoreGen;
+                                configuration.Save();
+                            }
+
+                            ImGui.NewLine();
+                            var keepImages = configuration.KeepImages;
+                            if (ImGui.Checkbox("Keep Screenshots after generation##ERKeepImages",
+                                               ref keepImages))
+                            {
+                                configuration.KeepImages = keepImages;
+                                configuration.Save();
+                            }
+
+                            ImGui.SameLine();
+                            var keepTemp = configuration.KeepTemp;
+                            if (ImGui.Checkbox("Keep Temp folder after generation##ERKeepTemp",
+                                               ref keepTemp))
+                            {
+                                configuration.KeepTemp = keepTemp;
+                                configuration.Save();
+                            }
+
+                            ImGui.SameLine();
+                            var keepStitches = configuration.KeepStitches;
+                            if (ImGui.Checkbox("Keep Stitches folder after generation##ERKeepStitches",
+                                               ref keepStitches))
+                            {
+                                configuration.KeepStitches = keepStitches;
+                                configuration.Save();
+                            }
+                        }
+
+                        if (ImGui.Button("Create Panorama##ERCreatePano"))
+                        {
+                            Plugin.PanoramaHelper.DoPanorama();
+                        }
+
+                        ImGui.Text("Current Location: ");
+                        ImGui.Text(Plugin.PanoramaHelper.GetTerritoryName() + " / " +
+                                   Plugin.PanoramaHelper.GetTerritorySubName() + " / " +
+                                   Plugin.PanoramaHelper.GetAreaName() + " / " +
+                                   Plugin.PanoramaHelper.GetSubAreaName());
                     
-                    if (webPQuality < 1)
-                        webPQuality = 1;
+                        if (ImGui.CollapsingHeader("Queue Options:"))
+                        {
+                            var parallelThreads = this.configuration.ParallelThreads;
+                            if (ImGui.InputInt("Maximum parallel threads", ref parallelThreads, 1, 1))
+                            {
+                                if (parallelThreads > 15)
+                                    parallelThreads = 15;
+                                else if (parallelThreads < 1)
+                                    parallelThreads = 1;
+                                
+                                this.configuration.ParallelThreads = parallelThreads;
+                                this.configuration.Save();
+                            }
+                        }
 
-                    configuration.WebPQuality = webPQuality;
-                    configuration.Save();
+                        using var queueGroup = ImRaii.Group();
+                        if (queueGroup)
+                        {
+                            if (ImGui.BeginTable($"Queue Table##QueueTable", 4,
+                                                 ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY))
+                            {
+                                ImGui.TableSetupScrollFreeze(0, 1); // Make top row always visible
+                                ImGui.TableSetupColumn("Pos", ImGuiTableColumnFlags.WidthFixed, 25f);
+                                ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 60f);
+                                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, 275f);
+                                ImGui.TableSetupColumn("Active Task", ImGuiTableColumnFlags.None, 500f);
+                                ImGui.TableHeadersRow();
+                                ImGui.TableNextColumn();
+                                ImGui.TableNextColumn();
+                                ImGui.TableNextColumn();
+                                ImGui.TableNextColumn();
+
+                                foreach (EREventId queueItem in PanoramaHelper.QueueItems)
+                                {
+                                    ImGui.TableNextRow();
+                                    if (queueItem.Status != QueueStatus.Created)
+                                        ImGui.PushStyleColor(ImGuiCol.Text, queueItem.Status == QueueStatus.Running ? Constants.INFOLOGCOLOR : Constants.DEBUGLOGCOLOR);
+                                    ImGui.TableNextColumn();
+                                    ImGui.TextUnformatted(PanoramaHelper.QueueItems.IndexOf(queueItem).ToString());
+                                    ImGui.TableNextColumn();
+                                    ImGui.TextUnformatted(queueItem.Status.ToString());
+                                    ImGui.TableNextColumn();
+                                    ImGui.PushTextWrapPos();
+                                    ImGui.TextUnformatted(queueItem.PanoramaName);
+                                    ImGui.TableNextColumn();
+                                    ImGui.TextUnformatted(queueItem.ActiveTask);
+                                    if (queueItem.Status != QueueStatus.Created)
+                                        ImGui.PopStyleColor();
+                                }
+                                
+                                ImGui.EndTable();
+                            }
+                        }
+                    }
                 }
-                
-                /*var showCharacter = configuration.ShowCharacter;
-                if (ImGui.Checkbox("Show character in panorama (moves camera infront of player)##ERShowCharacter",
-                                   ref showCharacter))
+
+                using (var tabItemLogs = ImRaii.TabItem("Logs"))
                 {
-                    configuration.ShowCharacter = showCharacter;
-                    configuration.Save();
-                }*/
-                
-                var multicoreGen = configuration.MulticoreGen;
-                if (ImGui.Checkbox("Use Multicore Generation (harder on the cpu, but faster)##ERMulticoreGen",
-                                   ref multicoreGen))
-                {
-                    configuration.MulticoreGen = multicoreGen;
-                    configuration.Save();
-                }
-                
-                ImGui.NewLine();
-                var keepImages = configuration.KeepImages;
-                if (ImGui.Checkbox("Keep Screenshots after generation##ERKeepImages",
-                                   ref keepImages))
-                {
-                    configuration.KeepImages = keepImages;
-                    configuration.Save();
-                }
-                ImGui.SameLine();
-                var keepTemp = configuration.KeepTemp;
-                if (ImGui.Checkbox("Keep Temp folder after generation##ERKeepTemp",
-                                   ref keepTemp))
-                {
-                    configuration.KeepTemp = keepTemp;
-                    configuration.Save();
-                }
-                ImGui.SameLine();
-                var keepStitches = configuration.KeepStitches;
-                if (ImGui.Checkbox("Keep Stitches folder after generation##ERKeepStitches",
-                                   ref keepStitches))
-                {
-                    configuration.KeepStitches = keepStitches;
-                    configuration.Save();
+                    if (tabItemLogs)
+                    {
+                        if (ImGui.CollapsingHeader("Log Options:"))
+                        {
+                            var maxLogEntries = this.configuration.MaxLogEntries;
+                            if (ImGui.InputInt("Maximum log entries", ref maxLogEntries))
+                            {
+                                this.configuration.MaxLogEntries = maxLogEntries;
+                                this.configuration.Save();
+                                UpdateLogGeneralFilter = true;
+                            }
+                            var showDebugLog = this.configuration.ShowGeneralDebugLog;
+                            if (ImGui.Checkbox("Show debug logs", ref showDebugLog))
+                            {
+                                this.configuration.ShowGeneralDebugLog = showDebugLog;
+                                this.configuration.Save();
+                                UpdateLogGeneralFilter = true;
+                            }
+
+                            var showErrorLog = this.configuration.ShowGeneralErrorLog;
+                            if (ImGui.Checkbox("Show error logs", ref showErrorLog))
+                            {
+                                this.configuration.ShowGeneralErrorLog = showErrorLog;
+                                this.configuration.Save();
+                                UpdateLogGeneralFilter = true;
+                            }
+
+                            var jumpToBottom = this.configuration.GeneralJumpToBottom;
+                            if (ImGui.Checkbox("Always jump to bottom", ref jumpToBottom))
+                            {
+                                this.configuration.GeneralJumpToBottom = jumpToBottom;
+                                this.configuration.Save();
+                            }
+                        }
+
+                        DrawLogTable("General", configuration.GeneralJumpToBottom, ref filteredLogsGeneral,
+                                     ref UpdateLogGeneralFilter, ref resetLogGeneralFilter, ref filterLogsGeneralMethod,
+                                     ref filterLogsGeneralMessage, ref filterLogsGeneralId);
+                    }
                 }
             }
-            
-            var panoramaName = configuration.PanoramaName;
-            if (ImGui.InputText("Panorama Name (Will restart with already taken screenshots, leave empty to create new ones)##ERPanoramaName",
-                                ref panoramaName))
-            {
-                configuration.PanoramaName = panoramaName;
-                configuration.Save();
-            }
-
-            if (ImGui.Button("Create Panorama##ERCreatePano"))
-            {
-                Plugin.PanoramaHelper.DoPanorama();
-            }
-            
-            ImGui.Text("Current Location: ");
-            ImGui.Text(Plugin.PanoramaHelper.GetTerritoryName() + " / " + Plugin.PanoramaHelper.GetTerritorySubName() + " / " + Plugin.PanoramaHelper.GetAreaName() + " / " + Plugin.PanoramaHelper.GetSubAreaName());
-
-            ImGui.Text($"Currently working on:");
-            ImGui.PushStyleColor(ImGuiCol.Text, Constants.ACTIVETASKCOLOR);
-            ImGui.Text($"{activeTask}");
-            ImGui.PopStyleColor();
         }
-
-        if (ImGui.CollapsingHeader("Log Options:"))
-        {
-            var showDebugLog = this.configuration.ShowGeneralDebugLog;
-            if (ImGui.Checkbox("Show debug logs", ref showDebugLog))
-            {
-                this.configuration.ShowGeneralDebugLog = showDebugLog;
-                this.configuration.Save();
-                UpdateLogGeneralFilter = true;
-            }
-            var showErrorLog = this.configuration.ShowGeneralErrorLog;
-            if (ImGui.Checkbox("Show error logs", ref showErrorLog))
-            {
-                this.configuration.ShowGeneralErrorLog = showErrorLog;
-                this.configuration.Save();
-                UpdateLogGeneralFilter = true;
-            }
-            var jumpToBottom = this.configuration.GeneralJumpToBottom;
-            if (ImGui.Checkbox("Always jump to bottom", ref jumpToBottom))
-            {
-                this.configuration.GeneralJumpToBottom = jumpToBottom;
-                this.configuration.Save();
-            }
-        }
-        DrawLogTable("General", configuration.GeneralJumpToBottom, ref filteredLogsGeneral, ref UpdateLogGeneralFilter, ref resetLogGeneralFilter, ref filterLogsGeneralMethod, ref filterLogsGeneralMessage, ref filterLogsGeneralId);
     }
 
     private void DrawLogTable(string logType, bool scrollToBottom, ref List<LogMessage> filteredLogs, ref bool updateLogs, ref bool resetLogs, ref string filterMethod, ref string filterMessage, ref string filterId)
@@ -322,7 +405,9 @@ public class MainWindow : Window, IDisposable
                     updateLogs = false;
                     sortSpecs.SpecsDirty = false;
                 }
-                foreach (var logMessage in filteredLogs)
+
+                var maxEntriesList = filteredLogs.TakeLast(configuration.MaxLogEntries);
+                foreach (var logMessage in maxEntriesList)
                 {
                     ImGui.TableNextRow();
                     ImGui.PushStyleColor(ImGuiCol.Text, logMessage.color);
@@ -350,7 +435,7 @@ public class MainWindow : Window, IDisposable
 
     internal static void ActiveTask(string methodName, string curActiveTask, EREventId eventId)
     {
-        activeTask = curActiveTask;
-        LogHelper.Info(methodName, activeTask, eventId);
+        eventId.ActiveTask = curActiveTask;
+        LogHelper.Info(methodName, curActiveTask, eventId);
     }
 }
