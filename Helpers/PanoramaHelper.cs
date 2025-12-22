@@ -31,7 +31,8 @@ public unsafe class PanoramaHelper: IDisposable
     internal static bool DoingPanorama = false;
     public static TerritoryInfo* AreaInfo => TerritoryInfo.Instance();
 
-    private const int ScreenshotKey = 551;
+    //Found here: https://github.com/Glyceri/XivFatalFrame/blob/main/XivFatalFrame/Screenshotter/ScreenshotTaker.cs
+    private const int ScreenshotKey = 554;
     private delegate byte IsInputIdClickedDelegate(UIInputData* uiInputData, int key);
     [Signature("E9 ?? ?? ?? ?? 83 7F ?? ?? 0F 8F ?? ?? ?? ?? BA ?? ?? ?? ?? 48 8B CB", DetourName = nameof(IsInputIdClickedDetour))]
     private readonly Hook<IsInputIdClickedDelegate>? IsInputIdClickedHook = null;
